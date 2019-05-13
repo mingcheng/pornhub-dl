@@ -12,12 +12,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/dustin/go-humanize"
 )
 
 // Global options
 var debugMode bool
+var threads = 5
 
 // Video stores informations about a single video on the platform.
 type Video struct {
@@ -28,10 +30,13 @@ type Video struct {
 // VideoQuality stores informations about a single file of a specific video.
 type VideoQuality struct {
 	quality, url, filename string
+	filesize               uint64
+	ranges                 bool
 }
 
 func main() {
 	// Print credits
+	fmt.Println()
 	fmt.Println("| --- PornHub Downloader created by festie ---")
 	fmt.Println("| GitHub: https://github.com/festie/pornhub-dl")
 	fmt.Println("| --------------------------------------------")
@@ -64,13 +69,6 @@ func main() {
 		return
 	}
 
-	// Print video details
-	fmt.Println("Title: " + videoDetails.title)
-	fmt.Println("Available formats:")
-	for _, quality := range videoDetails.qualities {
-		fmt.Printf("- %s (%s)\n", quality.quality, quality.filename)
-	}
-
 	// Process given quality
 	var highestQuality int64
 	selectedQualityName := quality
@@ -85,6 +83,25 @@ func main() {
 		selectedQualityName = strconv.FormatInt(highestQuality, 10)
 	}
 
+	// Print video details
+	fmt.Println("Title: " + videoDetails.title + "\n")
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 6, 8, 2, ' ', 0)
+
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t\n", "Quality", "Filename", "Size", "FastDL", "")
+	//fmt.Fprintf(w, "\n%s\t%s\t%s\t%s\t%s\t", "-------", "--------", "----", "------", "")
+
+	for _, quality := range videoDetails.qualities {
+		x := " "
+		if selectedQualityName == quality.quality {
+			x = "←"
+		}
+
+		fmt.Fprintf(w, "%sp\t%s\t%s\t%t\t%s\t\n", quality.quality, quality.filename, humanize.Bytes(quality.filesize), quality.ranges, x)
+	}
+
+	w.Flush()
+
 	if _, ok := videoDetails.qualities[selectedQualityName]; !ok {
 		fmt.Println("Quality " + selectedQualityName + " is not available for this video.")
 		return
@@ -92,8 +109,7 @@ func main() {
 
 	selectedQuality := videoDetails.qualities[selectedQualityName]
 
-	fmt.Println()
-	fmt.Println("Selected format: " + selectedQuality.filename)
+	fmt.Println("")
 
 	if outputPath == "default" {
 		outputPath = selectedQuality.filename
@@ -148,9 +164,27 @@ func GetVideoDetails(url string) (Video, error) {
 		url := slice[0]
 		filename := slice[1]
 		quality := slice[2]
+		ranges := false
+		var filesize uint64
+
+		// Do Head-Request to the file to fetch some data
+		headResp, err := http.Head(url)
+		if err != nil {
+			fmt.Println("Error while preparing download:")
+			fmt.Println(err)
+		}
+		defer headResp.Body.Close()
+
+		// Get size of file
+		filesize, _ = strconv.ParseUint(headResp.Header.Get("Content-Length"), 10, 64)
+
+		// Check if the server supports the Range-header
+		if headResp.Header.Get("Accept-Ranges") == "bytes" {
+			ranges = true
+		}
 
 		// Create and store video quality object
-		videoQuality := VideoQuality{url: url, filename: filename, quality: quality}
+		videoQuality := VideoQuality{url: url, filename: filename, quality: quality, filesize: filesize, ranges: ranges}
 		videoQualities[quality] = videoQuality
 	}
 
