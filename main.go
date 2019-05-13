@@ -261,7 +261,6 @@ func SplitDownloadFile(filepath string, video VideoQuality) error {
 		if err != nil {
 			return err
 		}
-		defer output.Close()
 
 		wg.Add(1)
 		go DoPartialDownload(video.url, offset, end, output)
@@ -289,7 +288,11 @@ func SplitDownloadFile(filepath string, video VideoQuality) error {
 
 		// Close and delete temporary file
 		file.Close()
-		os.Remove(tempfileName)
+
+		err := os.Remove(tempfileName)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
 	fmt.Println("Combinding completed. File is ready.")
@@ -300,7 +303,6 @@ func SplitDownloadFile(filepath string, video VideoQuality) error {
 // DoPartialDownload downloads a special part of the file at the given URL.
 func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) ([]byte, error) {
 	defer wg.Done()
-
 	client := http.Client{}
 
 	// Build request
@@ -319,6 +321,8 @@ func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) (
 	if err != nil {
 		return nil, err
 	}
+
+	output.Close()
 
 	return nil, nil
 }
