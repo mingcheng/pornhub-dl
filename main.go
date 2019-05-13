@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/dustin/go-humanize"
@@ -20,6 +21,8 @@ import (
 // Global options
 var debugMode bool
 var threads = 5
+var counter *DownloadStatus
+var wg sync.WaitGroup
 
 // Video stores informations about a single video on the platform.
 type Video struct {
@@ -47,6 +50,7 @@ func main() {
 	qualityPtr := flag.String("quality", "highest", "The quality number (eg. 720) or 'highest'")
 	outputPtr := flag.String("output", "default", "Path to where the download should be saved or 'default' for the original filename")
 	debugPtr := flag.Bool("debug", false, "Whether you want to activate debug mode or not")
+	threadsPtr := flag.Int("threads", 5, "The amount of threads to use to download")
 	flag.Parse()
 
 	// Assign variables to flag values
@@ -54,6 +58,7 @@ func main() {
 	quality := *qualityPtr
 	outputPath := *outputPtr
 	debugMode = *debugPtr
+	threads = *threadsPtr
 
 	// Check if parameters are set
 	if url == "empty" {
@@ -115,7 +120,8 @@ func main() {
 		outputPath = selectedQuality.filename
 	}
 
-	DownloadFile(outputPath, selectedQuality.url)
+	//DownloadFile(outputPath, selectedQuality.url)
+	SplitDownloadFile(outputPath, selectedQuality)
 	fmt.Println("Done!")
 }
 
@@ -235,9 +241,92 @@ func (status *DownloadStatus) Write(bytes []byte) (int, error) {
 	return byteAmount, nil
 }
 
+// SplitDownloadFile downloads a remote file to the harddrive while writing it
+// directly to a file instead of storing it in RAM until the donwload completes.
+func SplitDownloadFile(filepath string, video VideoQuality) error {
+	counter = &DownloadStatus{Total: video.filesize}
+	sliceSize := video.filesize / uint64(threads)
+
+	for i := 1; i <= threads; i++ {
+		offset := sliceSize * uint64(i-1)
+		end := offset + sliceSize - 1
+
+		if i == threads {
+			end = video.filesize
+		}
+
+		// Create a temporary file
+		tempfileName := fmt.Sprintf("%s.%d.tmp", filepath, i)
+		output, err := os.Create(tempfileName)
+		if err != nil {
+			return err
+		}
+		defer output.Close()
+
+		wg.Add(1)
+		go DoPartialDownload(video.url, offset, end, output)
+	}
+
+	fmt.Printf("Downloading file using %d threads.\n", threads)
+	wg.Wait()
+	fmt.Println("Download completed.")
+
+	// Combine single downloads into a single video file
+	output, _ := os.Create(filepath)
+	defer output.Close()
+	for i := 1; i <= threads; i++ {
+		// Open temporary file
+		tempfileName := fmt.Sprintf("%s.%d.tmp", filepath, i)
+		file, _ := os.Open(tempfileName)
+
+		// Read bytes
+		stat, _ := file.Stat()
+		tempBytes := make([]byte, stat.Size())
+		file.Read(tempBytes)
+
+		// Write to output file
+		output.Write(tempBytes)
+
+		// Close and delete temporary file
+		file.Close()
+		os.Remove(tempfileName)
+	}
+
+	fmt.Println("Combinding completed. File is ready.")
+
+	return nil
+}
+
+// DoPartialDownload downloads a special part of the file at the given URL.
+func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) ([]byte, error) {
+	defer wg.Done()
+
+	client := http.Client{}
+
+	// Build request
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("Range", fmt.Sprintf("bytes=%d-%d", offset, end))
+
+	// Execute request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Create our progress reporter and pass it to be used alongside our writer
+	_, err = io.Copy(output, io.TeeReader(resp.Body, counter))
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
 // DownloadFile downloads a remote file to the harddrive while writing it
 // directly to a file instead of storing it in RAM until the donwload completes.
 func DownloadFile(filepath string, url string) error {
+	fmt.Println("OBSOLETE!!")
 
 	// Create a temporary file
 	tempfile := filepath + ".tmp"
