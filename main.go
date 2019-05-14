@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"text/tabwriter"
 
@@ -20,9 +19,12 @@ import (
 
 // Global options
 var debugMode bool
-var threads = 5
+var threads = 10
+
+// States
 var counter *DownloadStatus
 var wg sync.WaitGroup
+var waitingThreads = 0
 
 // Video stores informations about a single video on the platform.
 type Video struct {
@@ -120,9 +122,11 @@ func main() {
 		outputPath = selectedQuality.filename
 	}
 
-	//DownloadFile(outputPath, selectedQuality.url)
-	SplitDownloadFile(outputPath, selectedQuality)
-	fmt.Println("Done!")
+	if selectedQuality.ranges {
+		SplitDownloadFile(outputPath, selectedQuality)
+	} else {
+		DownloadFile(outputPath, selectedQuality.url)
+	}
 }
 
 // GetVideoDetails queries the given URL and returns details such as
@@ -222,8 +226,7 @@ func GetVideoDetails(url string) (Video, error) {
 // it can be given to the io.TeeReader(). This is also used to print out the current
 // status of the download
 type DownloadStatus struct {
-	Done  uint64
-	Total uint64
+	Done, Total uint64
 }
 
 // Write implements io.Write
@@ -268,7 +271,8 @@ func SplitDownloadFile(filepath string, video VideoQuality) error {
 
 	fmt.Printf("Downloading file using %d threads.\n", threads)
 	wg.Wait()
-	fmt.Println("Download completed.")
+	counter.PrintDownloadStatus()
+	fmt.Print("\nProcessing... ")
 
 	// Combine single downloads into a single video file
 	output, _ := os.Create(filepath)
@@ -295,7 +299,8 @@ func SplitDownloadFile(filepath string, video VideoQuality) error {
 		}
 	}
 
-	fmt.Println("Combinding completed. File is ready.")
+	fmt.Println("Done!")
+	fmt.Println()
 
 	return nil
 }
@@ -323,6 +328,7 @@ func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) (
 	}
 
 	output.Close()
+	waitingThreads++
 
 	return nil, nil
 }
@@ -330,7 +336,7 @@ func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) (
 // DownloadFile downloads a remote file to the harddrive while writing it
 // directly to a file instead of storing it in RAM until the donwload completes.
 func DownloadFile(filepath string, url string) error {
-	fmt.Println("OBSOLETE!!")
+	fmt.Println("Server does not support partial downloads. Continuing with a single thread.")
 
 	// Create a temporary file
 	tempfile := filepath + ".tmp"
@@ -368,9 +374,6 @@ func DownloadFile(filepath string, url string) error {
 
 // PrintDownloadStatus prints the current download progress to console.
 func (status DownloadStatus) PrintDownloadStatus() {
-	// Clear line
-	fmt.Printf("\r%s", strings.Repeat(" ", 35))
-
 	// Print current status
-	fmt.Printf("\rDownloading (%s / %s)... ", humanize.Bytes(status.Done), humanize.Bytes(status.Total))
+	fmt.Printf("\rDownloading %s / %s (%d of %d threads done) ", humanize.Bytes(status.Done), humanize.Bytes(status.Total), waitingThreads, threads)
 }
