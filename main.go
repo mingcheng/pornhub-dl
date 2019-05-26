@@ -23,7 +23,7 @@ import (
 // Global options
 var debugMode bool
 var threads = 10
-var socket5 = ""
+var socks5 = ""
 
 const userAgent = `Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko`
 
@@ -59,7 +59,7 @@ func main() {
 	outputPtr := flag.String("output", "default", "Path to where the download should be saved or 'default' for the original filename")
 	debugPtr := flag.Bool("debug", false, "Whether you want to activate debug mode or not")
 	threadsPtr := flag.Int("threads", 5, "The amount of threads to use to download")
-	flag.StringVar(&socket5, "socket5", "", "Request resource by SOCKET5")
+	flag.StringVar(&socks5, "socks5", "", "Specify socks5 proxy address for downloading resources")
 	flag.Parse()
 
 	// Assign variables to flag values
@@ -143,9 +143,9 @@ func getResp(url string) (*http.Response, error) {
 	httpTransport := &http.Transport{}
 	client := &http.Client{Transport: httpTransport}
 
-	if len(socket5) > 0 {
-		_, _ = fmt.Fprintf(os.Stderr, "Using SOCKET5 Address %s\n", socket5)
-		dialer, err := goproxy.SOCKS5("tcp", socket5, nil, goproxy.Direct)
+	if len(socks5) > 0 {
+		_, _ = fmt.Fprintf(os.Stderr, "Using SOCKET5 Address %s\n", socks5)
+		dialer, err := goproxy.SOCKS5("tcp", socks5, nil, goproxy.Direct)
 		if err != nil {
 			return nil, err
 		}

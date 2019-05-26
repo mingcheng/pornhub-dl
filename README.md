@@ -12,7 +12,7 @@ You can call it via command-line. It supports the following flags:
 |quality|"highest"|The quality number (eg. 720) or 'highest'|
 |output|"default"|Path to where the download should be saved or 'default' for the original filename|
 |threads|10|The amount of simultaneous download streams|
-|socket5|none|Make downloads using socket5 proxy address|
+|socket5|""|Specify socks5 proxy address for downloading resources|
 |debug|false|Whether you want to activate debug mode or not (not in use)|
 
 ## Contribution
