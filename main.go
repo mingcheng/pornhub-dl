@@ -21,6 +21,8 @@ import (
 var debugMode bool
 var threads = 10
 
+const userAgent = `Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko`
+
 // States
 var counter *DownloadStatus
 var wg sync.WaitGroup
@@ -129,6 +131,21 @@ func main() {
 	}
 }
 
+// Start HTTP GET Request
+// - url
+func getResp(url string) (*http.Response, error) {
+	client := &http.Client{}
+
+	reqest, err := http.NewRequest("GET", url, nil)
+	reqest.Header.Add("User-Agent", userAgent)
+	reqest.Header.Add("Referer", url)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Do(reqest)
+}
+
 // GetVideoDetails queries the given URL and returns details such as
 // - title
 // - available qualities
@@ -144,7 +161,8 @@ func GetVideoDetails(url string) (Video, error) {
 	titleRegex, _ := regexp.Compile(titleRegexRule)
 
 	// Download content of webpage
-	resp, err := http.Get(url)
+	// resp, err := http.Get(url)
+	resp, err := getResp(url)
 
 	// Check if there was an error downloading
 	if err != nil {
@@ -313,6 +331,8 @@ func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) (
 	// Build request
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Range", fmt.Sprintf("bytes=%d-%d", offset, end))
+	req.Header.Add("User-Agent", userAgent)
+	req.Header.Add("Referer", url)
 
 	// Execute request
 	resp, err := client.Do(req)
@@ -347,7 +367,8 @@ func DownloadFile(filepath string, url string) error {
 	defer output.Close()
 
 	// Download data from given URL
-	resp, err := http.Get(url)
+	// resp, err := http.Get(url)
+	resp, err := getResp(url)
 	if err != nil {
 		return err
 	}
