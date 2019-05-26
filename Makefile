@@ -20,3 +20,4 @@ test-race:
 clean:
 	@$(GO) clean ./...
 	@rm -f $(BIN)
+	@rm -f *.tmp
