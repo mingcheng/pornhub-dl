@@ -1,4 +1,5 @@
 # pornhub-dl
+
 pornhub-dl started as a fun project to learn Go and to demonstrate a few basic capabilities of the Go language. The whole project is inspired by [youtube-dl](https://github.com/ytdl-org/youtube-dl/). It was done in about 2 hours with absolutely zero knowledge of Go. 
 
 ## Usage
@@ -11,6 +12,7 @@ You can call it via command-line. It supports the following flags:
 |quality|"highest"|The quality number (eg. 720) or 'highest'|
 |output|"default"|Path to where the download should be saved or 'default' for the original filename|
 |threads|10|The amount of simultaneous download streams|
+|socket5|none|Make downloads using socket5 proxy address|
 |debug|false|Whether you want to activate debug mode or not (not in use)|
 
 ## Contribution
