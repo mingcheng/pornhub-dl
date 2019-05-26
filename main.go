@@ -155,14 +155,14 @@ func getResp(url string) (*http.Response, error) {
 		}
 	}
 
-	reqest, err := http.NewRequest("GET", url, nil)
-	reqest.Header.Add("User-Agent", userAgent)
-	reqest.Header.Add("Referer", url)
+	request, err := http.NewRequest("GET", url, nil)
+	request.Header.Add("User-Agent", userAgent)
+	request.Header.Add("Referer", url)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.Do(reqest)
+	return client.Do(request)
 }
 
 // GetVideoDetails queries the given URL and returns details such as
