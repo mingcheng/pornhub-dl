@@ -144,7 +144,7 @@ func getResp(url string) (*http.Response, error) {
 	client := &http.Client{Transport: httpTransport}
 
 	if len(socks5) > 0 {
-		_, _ = fmt.Fprintf(os.Stderr, "Using SOCKET5 Address %s\n", socks5)
+		_, _ = fmt.Fprintf(os.Stderr, "Socks5 proxy address is %s\n", socks5)
 		dialer, err := goproxy.SOCKS5("tcp", socks5, nil, goproxy.Direct)
 		if err != nil {
 			return nil, err
