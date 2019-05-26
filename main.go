@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,11 +17,13 @@ import (
 	"text/tabwriter"
 
 	"github.com/dustin/go-humanize"
+	goproxy "golang.org/x/net/proxy"
 )
 
 // Global options
 var debugMode bool
 var threads = 10
+var socket5 = ""
 
 const userAgent = `Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko`
 
@@ -55,6 +59,7 @@ func main() {
 	outputPtr := flag.String("output", "default", "Path to where the download should be saved or 'default' for the original filename")
 	debugPtr := flag.Bool("debug", false, "Whether you want to activate debug mode or not")
 	threadsPtr := flag.Int("threads", 5, "The amount of threads to use to download")
+	flag.StringVar(&socket5, "socket5", "", "Request resource by SOCKET5")
 	flag.Parse()
 
 	// Assign variables to flag values
@@ -133,8 +138,22 @@ func main() {
 
 // Start HTTP GET Request
 // - url
+// - proxyAddr
 func getResp(url string) (*http.Response, error) {
-	client := &http.Client{}
+	httpTransport := &http.Transport{}
+	client := &http.Client{Transport: httpTransport}
+
+	if len(socket5) > 0 {
+		_, _ = fmt.Fprintf(os.Stderr, "Using SOCKET5 Address %s\n", socket5)
+		dialer, err := goproxy.SOCKS5("tcp", socket5, nil, goproxy.Direct)
+		if err != nil {
+			return nil, err
+		}
+
+		httpTransport.DialContext = func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
+			return dialer.Dial(network, addr)
+		}
+	}
 
 	reqest, err := http.NewRequest("GET", url, nil)
 	reqest.Header.Add("User-Agent", userAgent)
