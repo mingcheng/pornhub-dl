@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -49,7 +50,7 @@ func main() {
 	// Print credits
 	fmt.Println()
 	fmt.Println("| --- PornHub Downloader created by festie ---")
-	fmt.Println("| GitHub: https://github.com/festie/pornhub-dl")
+	fmt.Println("| GitHub: https://github.com/mingcheng/pornhub-dl")
 	fmt.Println("| --------------------------------------------")
 	fmt.Println()
 
@@ -103,7 +104,7 @@ func main() {
 	w.Init(os.Stdout, 6, 8, 2, ' ', 0)
 
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t\n", "Quality", "Filename", "Size", "FastDL", "")
-	//fmt.Fprintf(w, "\n%s\t%s\t%s\t%s\t%s\t", "-------", "--------", "----", "------", "")
+	// fmt.Fprintf(w, "\n%s\t%s\t%s\t%s\t%s\t", "-------", "--------", "----", "------", "")
 
 	for _, quality := range videoDetails.qualities {
 		x := " "
@@ -360,8 +361,13 @@ func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) (
 	}
 	defer resp.Body.Close()
 
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create our progress reporter and pass it to be used alongside our writer
-	_, err = io.Copy(output, io.TeeReader(resp.Body, counter))
+	_, err = io.Copy(output, io.TeeReader(bytes.NewReader(data), counter))
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +375,7 @@ func DoPartialDownload(url string, offset uint64, end uint64, output *os.File) (
 	output.Close()
 	waitingThreads++
 
-	return nil, nil
+	return data, nil
 }
 
 // DownloadFile downloads a remote file to the harddrive while writing it
