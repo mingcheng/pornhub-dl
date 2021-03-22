@@ -49,8 +49,8 @@ type VideoQuality struct {
 func main() {
 	// Print credits
 	fmt.Println()
-	fmt.Println("| --- PornHub Downloader created by festie ---")
-	fmt.Println("| GitHub: https://github.com/mingcheng/pornhub-dl")
+	fmt.Println("| --- PornHub Downloader created by mingcheng(based on festie's code) ---")
+	fmt.Println("| GitHub: https://github.com/festie/pornhub-dl https://github.com/mingcheng/pornhub-dl")
 	fmt.Println("| --------------------------------------------")
 	fmt.Println()
 
@@ -58,8 +58,8 @@ func main() {
 	urlPtr := flag.String("url", "empty", "URL of the video to download")
 	qualityPtr := flag.String("quality", "highest", "The quality number (eg. 720) or 'highest'")
 	outputPtr := flag.String("output", "default", "Path to where the download should be saved or 'default' for the original filename")
-	debugPtr := flag.Bool("debug", false, "Whether you want to activate debug mode or not")
 	threadsPtr := flag.Int("threads", 5, "The amount of threads to use to download")
+	flag.BoolVar(&debugMode, "debug", false, "Whether you want to activate debug mode or not")
 	flag.StringVar(&socks5, "socks5", "", "Specify socks5 proxy address for downloading resources")
 	flag.Parse()
 
@@ -67,7 +67,6 @@ func main() {
 	url := *urlPtr
 	quality := *qualityPtr
 	outputPath := *outputPtr
-	debugMode = *debugPtr
 	threads = *threadsPtr
 
 	// Check if parameters are set
